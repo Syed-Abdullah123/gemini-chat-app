@@ -1,9 +1,20 @@
-import { StyleSheet, Text, View, FlatList, TextInput, Button, Platform, TouchableWithoutFeedback, Keyboard, TouchableOpacity, Image } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  TextInput,
+  Platform,
+  TouchableOpacity,
+  Image,
+} from "react-native";
 import React, { use, useEffect, useRef, useState } from "react";
 import { useMessageStore } from "../store/message.store";
 import { COLORS } from "../theme/colors";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import PrimaryButton from "../components/PrimaryButton";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useChatStore } from "../store/chat.store";
 import { useAuthStore } from "../store/auth.store";
 import { useNavigation } from "@react-navigation/native";
@@ -12,14 +23,17 @@ import BottomSheet from "../components/BottomSheet";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import ThinkingBubble from "../components/ThinkingBubble";
 import { LinearGradient } from "expo-linear-gradient";
-import Markdown from 'react-native-markdown-display';
+import Markdown from "react-native-markdown-display";
+import VoiceRecorderSheet from "../components/VoiceRecorderSheet";
 
 export default function ChatScreen({ route }: any) {
   const { chatId } = route.params ?? {};
 
-  const { messages, fetchMessages, sendMessage, thinking  } = useMessageStore();
+  const { messages, fetchMessages, sendMessage, thinking } = useMessageStore();
 
   const [input, setInput] = useState("");
+
+  const [isVoiceSheetOpen, setIsVoiceSheetOpen] = useState(false);
 
   const insets = useSafeAreaInsets();
 
@@ -32,6 +46,10 @@ export default function ChatScreen({ route }: any) {
   const [historyVisible, setHistoryVisible] = useState(false);
   const { chats, fetchChats } = useChatStore();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const handleVoiceResult = (text: string) => {
+    setInput(text);
+  };
 
   // showing the header right icon in our header
   useEffect(() => {
@@ -50,7 +68,7 @@ export default function ChatScreen({ route }: any) {
       ),
     });
   }, [navigation]);
-          // }} 
+  // }}
 
   useEffect(() => {
     if (!chatId) return;
@@ -71,29 +89,6 @@ export default function ChatScreen({ route }: any) {
 
   return (
     <>
-      {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss}> */}
-      {/* <View
-        style={{ flex: 1, paddingBottom: keyboardHeight }}
-        // behavior={Platform.OS === "ios" ? "padding" : "height"}
-        // keyboardVerticalOffset={90}
-      > */}
-      {/* <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={26} color={COLORS.textDark} />
-            </TouchableOpacity>
-
-            <Text style={styles.headerTitle}>Chat</Text>
-
-            <TouchableOpacity
-              onPress={async () => {
-                const user = useAuthStore.getState().user;
-                await fetchChats(user.id);
-                setHistoryVisible(true);
-              }}
-            >
-              <Ionicons name="time-outline" size={26} color={COLORS.textDark} />
-            </TouchableOpacity>
-          </View> */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -165,7 +160,6 @@ export default function ChatScreen({ route }: any) {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               !thinking ? (
-                // <View style={{ transform: [{ scaleY: -1 }] }}>
                 <View style={styles.emptyContainer}>
                   <Ionicons
                     name="chatbubble-ellipses-outline"
@@ -178,18 +172,10 @@ export default function ChatScreen({ route }: any) {
                     Ask me anything — I'm here to help
                   </Text>
                 </View>
-                // </View>
               ) : null
             }
-            // onContentSizeChange={() =>
-            //   listRef.current.scrollToEnd({ animated: true })
-            // }
-            // onLayout={() => listRef.current.scrollToEnd({ animated: true })}
           />
 
-          {/* <View
-              style={[styles.inputRow, { paddingBottom: insets.bottom + 10 }]}
-            > */}
           <View style={[styles.inputRow, { paddingBottom: 50 }]}>
             <View style={styles.input}>
               <TextInput
@@ -199,22 +185,21 @@ export default function ChatScreen({ route }: any) {
                 placeholder="Ask something..."
                 multiline
               />
-              <TouchableOpacity activeOpacity={0.7}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setIsVoiceSheetOpen(true)}
+              >
                 <Ionicons name="mic" size={24} color={COLORS.textDark} />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-              {/* <Ionicons name="send" size={24} color={COLORS.white} /> */}
               <FontAwesome name="send-o" size={22} color={COLORS.white} />
-              {/* <Feather name="send" size={24} color={COLORS.white} /> */}
             </TouchableOpacity>
           </View>
         </View>
         {/* </LinearGradient> */}
       </KeyboardAvoidingView>
-      {/* </View> */}
-      {/* </TouchableWithoutFeedback> */}
       <BottomSheet
         visible={historyVisible}
         onClose={() => setHistoryVisible(false)}
@@ -251,10 +236,16 @@ export default function ChatScreen({ route }: any) {
           </TouchableOpacity>
         ))}
       </BottomSheet>
+
+      {isVoiceSheetOpen && (
+        <VoiceRecorderSheet
+          onClose={() => setIsVoiceSheetOpen(false)}
+          onResult={handleVoiceResult}
+        />
+      )}
     </>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -292,27 +283,27 @@ const styles = StyleSheet.create({
   },
 
   emptyContainer: {
-  flex: 1,
-  alignItems: "center",
-  justifyContent: "center",
-  // paddingTop: 120,
-  gap: 10,
-  top: 100
-},
-emptyTitle: {
-  fontFamily: "Lexend_SemiBold",
-  fontSize: 18,
-  color: COLORS.textDark,
-  opacity: 0.6,
-},
-emptySubtitle: {
-  fontFamily: "Lexend_Regular",
-  fontSize: 14,
-  color: COLORS.textDark,
-  opacity: 0.4,
-  textAlign: "center",
-  paddingHorizontal: 40,
-},
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    // paddingTop: 120,
+    gap: 10,
+    top: 100,
+  },
+  emptyTitle: {
+    fontFamily: "Lexend_SemiBold",
+    fontSize: 18,
+    color: COLORS.textDark,
+    opacity: 0.6,
+  },
+  emptySubtitle: {
+    fontFamily: "Lexend_Regular",
+    fontSize: 14,
+    color: COLORS.textDark,
+    opacity: 0.4,
+    textAlign: "center",
+    paddingHorizontal: 40,
+  },
 
   inputRow: {
     flexDirection: "row",

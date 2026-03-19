@@ -28,6 +28,7 @@ export default {
       },
       predictiveBackGestureEnabled: false,
       enableEdgeToEdge: true,
+      "package": "com.abc_123_a.AIGemini"
     },
 
     web: {
@@ -37,6 +38,14 @@ export default {
     plugins: [
       "expo-sqlite",
       "expo-font",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to use speech recognition.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ],
       // "react-native-reanimated",
     ],
 

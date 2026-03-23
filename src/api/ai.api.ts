@@ -1,43 +1,44 @@
-// import Constants from "expo-constants";
-// // import { GoogleGenAI } from "@google/genai";
-// import { GoogleGenAI } from "@google/genai";
-
-// const apiKey = Constants.expoConfig?.extra?.geminiApiKey;
-
-// const client = new GoogleGenAI({ apiKey });
-
-// export const AIAPI = {
-//   generateText: async (prompt: string) => {
-//     try {
-//       const response = await client.models.generateContent({
-//         model: "gemini-2.0-flash",
-//         contents: [{ role: "user", parts: [{ text: prompt }] }],
-//       });
-
-//       return response.text();
-//     } catch (err) {
-//       console.log("AI Error:", err);
-//       return "Error talking to AI.";
-//     }
-//   },
-// };
-
-import Constants from "expo-constants";
-
-// const apiKey = Constants.expoConfig?.extra?.geminiApiKey;
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;;
 // const GEMINI_URL =
 //   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
+// const GEMINI_URL =
+  // "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent";
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:streamGenerateContent";
 
 const IMAGEN_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-003:predict";
 
 export const AIAPI = {
-  generateText: async (prompt: string): Promise<string> => {
+  // generateText: async (prompt: string): Promise<string> => {
+  //   try {
+  //     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         contents: [{ role: "user", parts: [{ text: prompt }] }],
+  //       }),
+  //     });
+
+  //     const data = await response.json();
+  //     // console.log("AI Response:", data);
+  //     return (
+  //       data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+  //       "Sorry, I couldn't generate a response."
+  //     );
+  //   } catch (err) {
+  //     console.log("AI Error:", err);
+  //     return "Error talking to AI.";
+  //   }
+  // },
+
+  generateTextStream: async (
+    prompt: string,
+    onChunk: (token: string) => void,
+  ): Promise<void> => {
     try {
-      const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+      // alt=sse makes Gemini return proper SSE format React Native can handle
+      const response = await fetch(`${GEMINI_URL}?key=${apiKey}&alt=sse`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -45,15 +46,29 @@ export const AIAPI = {
         }),
       });
 
-      const data = await response.json();
-      // console.log("AI Response:", data);
-      return (
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-        "Sorry, I couldn't generate a response."
-      );
+      const text = await response.text(); // ← read full SSE text at once
+
+      // SSE lines look like:  data: {...json...}
+      const lines = text.split("\n");
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+
+        const jsonStr = line.replace("data: ", "").trim();
+        if (!jsonStr || jsonStr === "[DONE]") continue;
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const token =
+            parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+          if (token) onChunk(token);
+        } catch {
+          // skip malformed lines
+        }
+      }
     } catch (err) {
-      console.log("AI Error:", err);
-      return "Error talking to AI.";
+      console.log("Streaming Error:", err);
+      onChunk("⚠️ Error receiving streamed response.");
     }
   },
 

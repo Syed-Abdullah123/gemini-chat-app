@@ -156,7 +156,11 @@ export default function ChatScreen({ route }: any) {
               </View>
             )}
             keyboardDismissMode="interactive"
-            ListHeaderComponent={thinking ? <ThinkingBubble /> : null}
+            ListHeaderComponent={
+              thinking && !messages.some((m) => m.id?.startsWith("stream-")) ? (
+                <ThinkingBubble />
+              ) : null
+            }
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               !thinking ? (
@@ -183,6 +187,7 @@ export default function ChatScreen({ route }: any) {
                 value={input}
                 onChangeText={setInput}
                 placeholder="Ask something..."
+                placeholderTextColor="#999"
                 multiline
               />
               <TouchableOpacity

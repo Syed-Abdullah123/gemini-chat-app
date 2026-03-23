@@ -24,6 +24,22 @@ type MessageState = {
   clearMessages: () => void;
 };
 
+const simulateStream = (
+  fullText: string,
+  onChunk: (partial: string) => void,
+  onDone: () => void
+) => {
+  let i = 0;
+  const interval = setInterval(() => {
+    i += 12; // characters per tick — adjust for speed // was 6
+    onChunk(fullText.slice(0, i));
+    if (i >= fullText.length) {
+      clearInterval(interval);
+      onDone();
+    }
+  }, 8); // ~60fps // was 16
+};
+
 export const useMessageStore = create<MessageState>((set, get) => ({
   messages: [],
   loading: false,
@@ -74,14 +90,59 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         .single();
 
       set((state) => ({ messages: [aiMessage, ...state.messages] }));
+      // } else {
+      //   const aiText = await AIAPI.generateText(content);
+      //   const { data: aiMessage } = await MessageAPI.saveAIResponse(
+      //     chatId,
+      //     user.id,
+      //     aiText,
+      //   );
+      //   set((state) => ({ messages: [aiMessage, ...state.messages] }));
+      // }
     } else {
-      const aiText = await AIAPI.generateText(content);
+      let fullText = "";
+
+      const tempId = "stream-" + Date.now();
+      set((state) => ({
+        messages: [
+          { id: tempId, chat_id: chatId, role: "assistant", content: "" },
+          ...state.messages,
+        ],
+      }));
+
+      // Get full response (parsed from SSE)
+      await AIAPI.generateTextStream(content, (chunk) => {
+        fullText += chunk;
+      });
+
+      // Simulate streaming in the UI
+      await new Promise<void>((resolve) => {
+        simulateStream(
+          fullText,
+          (partial) => {
+            set((state) => ({
+              messages: state.messages.map((msg) =>
+                msg.id === tempId ? { ...msg, content: partial } : msg,
+              ),
+            }));
+          },
+          resolve,
+        );
+      });
+
+      // Save final to Supabase and replace temp message
       const { data: aiMessage } = await MessageAPI.saveAIResponse(
         chatId,
         user.id,
-        aiText,
+        fullText,
       );
-      set((state) => ({ messages: [aiMessage, ...state.messages] }));
+
+      set((state) => ({
+        messages: [
+          aiMessage,
+          ...state.messages.filter((msg) => msg.id !== tempId),
+        ],
+      }));
     }
     set({ thinking: false });
 
